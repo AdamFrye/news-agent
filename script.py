@@ -1,10 +1,11 @@
 from freshrss_api import FreshRSSAPI
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
-# Initialize the client with direct parameters
-client = FreshRSSAPI(
-    host="https://freshrss.example.net",
-    username="your_username",
-    password="your_api_password",
-    verify_ssl=True,
-    verbose=False
-)
+# Load environment variables and create API module
+load_dotenv()
+client = FreshRSSAPI()
+
+# Get articles from now - one day until current time.
+articles = client.get_items_from_dates(since=(datetime.now()) - timedelta(days=1))
+print(articles)
