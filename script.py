@@ -1,8 +1,8 @@
+from chatWithModel import chatWithModel
 from collections import defaultdict
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from freshrss_api import FreshRSSAPI
-from chatWithModel import chatWithModel
 import os
 import trafilatura
 import yaml
