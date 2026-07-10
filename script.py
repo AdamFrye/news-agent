@@ -2,8 +2,10 @@ from collections import namedtuple, defaultdict
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from freshrss_api import FreshRSSAPI
+import trafilatura
 import requests
 import yaml
+import json
 import os
 
 # Load environment variables and create API module
@@ -46,6 +48,25 @@ def chatWithModel(url, token, model, content, systemPrompt = None):
     }
     response = requests.post(url + '/api/chat/completions', headers=headers, json=data)
     response.raise_for_status()
+
+    # Some Open WebUI models ignore "stream": false and return a Server-Sent
+    # Events stream anyway, so handle both a single JSON body and an SSE stream.
+    contentType = response.headers.get('Content-Type', '')
+    if 'text/event-stream' in contentType or response.text.lstrip().startswith('data:'):
+        parts = []
+        for line in response.text.splitlines():
+            line = line.strip()
+            if not line.startswith('data:'):
+                continue
+            payload = line[len('data:'):].strip()
+            if payload == '[DONE]':
+                break
+            chunk = json.loads(payload)
+            delta = chunk['choices'][0].get('delta', {})
+            if delta.get('content'):
+                parts.append(delta['content'])
+        return ''.join(parts)
+
     return response.json()['choices'][0]['message']['content']
 
 # Reading config
@@ -67,7 +88,32 @@ for groupName, limit in groupNameToLimitRelation.items():
     prompt = f'limit: {limit}, articles:{articleList}'
     responses.append(chatWithModel(url, token, model, prompt, systemPrompt = config['selectorPrompt']))
 
-print(responses)
+category: str
+articleIdsInt = []
+for category in responses:
+    if not category: continue
+    articleIdsStr = category.split(',')
+    for id in articleIdsStr:
+        articleIdsInt.append(int(id))
+selectedArticles = client.get_items_from_ids(ids = articleIdsInt)
 
-# Feed the article titles by group into the small llm along with limit. maybe have some sort of fast lookup so that it doesn't have to sort through every single item to get the guy
-# Feed those into the big LLM and then feed its response to something. Don't forget feedback.
+def getArticleText(article):
+    # Prefer the full article body scraped from the source. Fall back to the
+    # feed's own html (stripped) when scraping fails or returns nothing, so an
+    # article is never handed to the model empty.
+    downloaded = trafilatura.fetch_url(article.url)
+    if downloaded:
+        text = trafilatura.extract(downloaded)
+        if text and text.strip():
+            return text.strip()
+    fallback = trafilatura.html2txt(article.html) if article.html else ''
+    return fallback.strip()
+
+articleBlocks = []
+for art in selectedArticles:
+    text = getArticleText(art)
+    articleBlocks.append(f'## {art.title}\nURL: {art.url}\n\n{text}')
+
+content = '\n\n---\n\n'.join(articleBlocks)
+summary = chatWithModel(url, token, config['summaryModel'], content, config['summaryPrompt'])
+print(summary)
