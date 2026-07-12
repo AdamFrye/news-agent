@@ -135,9 +135,9 @@ def main():
     # Note: Ensure your container timezone is set correctly (see below)
     config = loadConfig()
     time = config['runTime'].split(':')
-    scheduler.add_job(runService(config), 'cron', hour=int(time[0]), minute=int(time[1]))
+    scheduler.add_job(runService, 'cron', args=[config], hour=int(time[0]), minute=int(time[1]))
 
-    print("News Agent Service started. Waiting for 9:00 AM...")
+    print(f"News Agent Service started. Waiting for {config['runTime']}")
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
