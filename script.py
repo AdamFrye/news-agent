@@ -1,3 +1,4 @@
+from apscheduler.schedulers.blocking import BlockingScheduler
 from chatWithModel import chatWithModel
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -104,10 +105,9 @@ def pushToGitHub(config, filename):
     repo.git.push(authenticatedUrl, 'HEAD')
 
 
-def main():
+def runService(config):
     start = datetime.now()
     load_dotenv()
-    config = loadConfig()
     client = FreshRSSAPI()
 
     feedToGroup = buildFeedToGroupMap(client)
@@ -126,6 +126,22 @@ def main():
     filename = writeSummary(summary)
     pushToGitHub(config, filename)
     print(f'Summarized and Pushed in {datetime.now() - start}')
+
+
+def main():
+    scheduler = BlockingScheduler()
+    
+    # Schedule the job for 9:00 AM every day
+    # Note: Ensure your container timezone is set correctly (see below)
+    config = loadConfig()
+    time = config['runTime'].split(':')
+    scheduler.add_job(runService(config), 'cron', hour=int(time[0]), minute=int(time[1]))
+
+    print("News Agent Service started. Waiting for 9:00 AM...")
+    try:
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        pass
 
 
 if __name__ == '__main__':

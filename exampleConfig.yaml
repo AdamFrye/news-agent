@@ -3,8 +3,10 @@ feeds:
     limit: 5
 
 openWebUiBaseUrl: 'https://openwebui.example.com'
+gitHubNewsRepoUrl: 'https://github.com/<user>/<repo>'
 selectorModel: 'qwen3:32b'
 summaryModel: 'gemma4:31b'
+runTime: '09:00'
 
 selectorPrompt: |
   You are an article recommendation engine. You do not chat, explain, or narrate. You output data only.
