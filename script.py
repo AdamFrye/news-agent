@@ -5,7 +5,9 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from freshrss_api import FreshRSSAPI
 from git import Repo
+import argparse
 import os
+import sys
 import trafilatura
 import yaml
 
@@ -129,11 +131,13 @@ def runService(config):
 
 
 def main():
-    scheduler = BlockingScheduler()
-    
-    # Schedule the job for 9:00 AM every day
-    # Note: Ensure your container timezone is set correctly (see below)
     config = loadConfig()
+    
+    if len(sys.argv) > 1 and sys.argv[1] == 'trigger':
+        runService(config)
+        return
+    
+    scheduler = BlockingScheduler()
     time = config['runTime'].split(':')
     scheduler.add_job(runService, 'cron', args=[config], hour=int(time[0]), minute=int(time[1]))
 
