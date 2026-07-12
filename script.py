@@ -79,15 +79,15 @@ def summarizeArticles(config, articles):
     )
 
 
-def writeSummary(config, summary):
-    """Write the summary to a dated markdown file under .tmp/ in the repo."""
+def writeSummary(summary):
+    """Write the summary to a dated markdown file under summaries."""
     today = datetime.now().strftime('%Y-%m-%d')
-    relativePath = os.path.join('.tmp', f'{today}.md')
-    filepath = os.path.join(config['obsidianRepoFilePath'], relativePath)
+    filepath = os.path.join('summaries', f'{today}.md')
+    # filepath = os.path.join(config['summaries'], relativePath)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     with open(filepath, 'w') as file:
         file.write(f'# News Summary — {today}\n\n{summary}\n')
-    return relativePath
+    return filepath
 
 
 def pushToGitHub(config, filename):
@@ -96,9 +96,9 @@ def pushToGitHub(config, filename):
     authenticatedUrl = config['gitHubNewsRepoUrl'].replace(
         'https://', f'https://{pat}@',
     )
-    repo = Repo(config['obsidianRepoFilePath'])
+    repo = Repo('summaries')
 
-    repo.git.add(filename)
+    repo.git.add(os.path.basename(filename))
     repo.git.commit('-m', f'News summary {datetime.now():%Y-%m-%d}')
 
     repo.git.push(authenticatedUrl, 'HEAD')
@@ -123,7 +123,7 @@ def main():
         print('No summary produced; nothing to push.')
         return
 
-    filename = writeSummary(config, summary)
+    filename = writeSummary(summary)
     pushToGitHub(config, filename)
     print(f'Summarized and Pushed in {datetime.now() - start}')
 
