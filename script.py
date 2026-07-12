@@ -12,6 +12,11 @@ import trafilatura
 import yaml
 
 
+# Fixed in-container working copy of the news repo. Mount a volume here to
+# persist it across restarts; otherwise it lives for the container's lifetime.
+NEWS_REPO_PATH = '/data/news'
+
+
 def loadConfig(path='config.yaml'):
     with open(path, 'r') as file:
         return yaml.safe_load(file)
@@ -82,29 +87,45 @@ def summarizeArticles(config, articles):
     )
 
 
-def writeSummary(summary):
-    """Write the summary to a dated markdown file under summaries."""
-    today = datetime.now().strftime('%Y-%m-%d')
-    filepath = os.path.join('summaries', f'{today}.md')
-    # filepath = os.path.join(config['summaries'], relativePath)
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    with open(filepath, 'w') as file:
-        file.write(f'# News Summary — {today}\n\n{summary}\n')
-    return filepath
+def syncRepo(config):
+    """Ensure the news repo working copy exists and is up to date.
 
-
-def pushToGitHub(config, filename):
-    """Commit the summary file and push it to the news repo on GitHub."""
+    On first run the mounted volume is empty, so we clone into it. On every
+    later run (including after a container restart) the clone already lives on
+    the volume, so we just pull to avoid diverging from the remote.
+    """
     pat = os.environ.get('GITHUB_PERSONAL_ACCESS_TOKEN')
     authenticatedUrl = config['gitHubNewsRepoUrl'].replace(
         'https://', f'https://{pat}@',
     )
-    repo = Repo('summaries')
+    workdir = NEWS_REPO_PATH
 
-    repo.git.add(os.path.basename(filename))
-    repo.git.commit('-m', f'News summary {datetime.now():%Y-%m-%d}')
+    if os.path.isdir(os.path.join(workdir, '.git')):
+        repo = Repo(workdir)
+        repo.remotes.origin.set_url(authenticatedUrl)
+        repo.remotes.origin.pull()
+    else:
+        os.makedirs(workdir, exist_ok=True)
+        repo = Repo.clone_from(authenticatedUrl, workdir)
 
-    repo.git.push(authenticatedUrl, 'HEAD')
+    # a fresh container has no git identity — set one so commits succeed
+    repo.git.config('user.email', 'agent@news-agent')
+    repo.git.config('user.name', 'News Agent')
+    return repo, workdir
+
+
+def publishSummary(config, summary):
+    """Write the summary into the synced repo, then commit and push it."""
+    repo, workdir = syncRepo(config)
+
+    today = datetime.now().strftime('%Y-%m-%d')
+    filename = f'{today}.md'
+    with open(os.path.join(workdir, filename), 'w') as file:
+        file.write(f'# News Summary — {today}\n\n{summary}\n')
+
+    repo.git.add(filename)
+    repo.git.commit('-m', f'News summary {today}')
+    repo.git.push('origin', 'HEAD')
 
 
 def runService(config):
@@ -125,14 +146,13 @@ def runService(config):
         print('No summary produced; nothing to push.')
         return
 
-    filename = writeSummary(summary)
-    pushToGitHub(config, filename)
+    publishSummary(config, summary)
     print(f'Summarized and Pushed in {datetime.now() - start}')
 
 
 def main():
     config = loadConfig()
-    
+
     if len(sys.argv) > 1 and sys.argv[1] == 'trigger':
         runService(config)
         return
