@@ -15,12 +15,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of your application code
-COPY script.py chatWithModel.py ./
+COPY src/script.py src/chatWithModel.py ./
 # We copy a default config, but we'll override it with a volume in Compose
 COPY config.yaml .
 
 # Install the `news` wrapper on PATH so `docker exec news-agent news trigger` works
-COPY news /usr/local/bin/news
+COPY scripts/news /usr/local/bin/news
 RUN chmod +x /usr/local/bin/news
 
 # Create the news repo working dir and hand both it and the app to our user.

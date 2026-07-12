@@ -6,6 +6,6 @@ summaries/
 .gitignore
 *.pyc
 .venv/
-build.sh
-exampleConfig.yaml
+scripts/build.sh
+config.yaml.example
 README.md

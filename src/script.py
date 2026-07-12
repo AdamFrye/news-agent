@@ -1,5 +1,5 @@
 from apscheduler.schedulers.blocking import BlockingScheduler
-from chatWithModel import chatWithModel
+from src.chatWithModel import chatWithModel
 from collections import defaultdict
 from datetime import datetime, timedelta
 from dotenv import load_dotenv

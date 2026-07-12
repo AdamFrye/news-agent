@@ -1,6 +1,7 @@
 services:
   news-agent:
     container_name: news-agent
-    image: thebiggestfrye/news-agent
+    build: .
+    image: news-agent
     env_file: .env
     restart: unless-stopped
