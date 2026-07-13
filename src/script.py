@@ -124,6 +124,9 @@ def publishSummary(config, summary):
         file.write(f'# News Summary — {today}\n\n{summary}\n')
 
     repo.git.add(filename)
+    if not repo.git.status('--porcelain'):
+        print(f'{filename} unchanged; nothing to commit.')
+        return
     repo.git.commit('-m', f'News summary {today}')
     repo.git.push('origin', 'HEAD')
 

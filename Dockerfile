@@ -3,6 +3,9 @@ FROM python:3.11-slim
 # Set the working directory inside the container
 WORKDIR /app
 
+# Stream stdout/stderr straight to docker logs instead of buffering it
+ENV PYTHONUNBUFFERED=1
+
 # git is required at runtime — gitpython shells out to the git binary
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
