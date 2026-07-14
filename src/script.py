@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from freshrss_api import FreshRSSAPI
 from git import Repo
-import argparse
 import os
 import sys
 import trafilatura
@@ -80,11 +79,14 @@ def summarizeArticles(config, articles):
         f'## {article.title}\nURL: {article.url}\n\n{getArticleText(article)}'
         for article in articles
     ]
-    content = '\n\n---\n\n'.join(blocks)
-    return chatWithModel(
-        config['openWebUiBaseUrl'], os.environ.get('OPENWEBUI_TOKEN'),
-        config['summaryModel'], content, config['summaryPrompt'],
-    )
+    summaries = [
+        chatWithModel(
+            config['openWebUiBaseUrl'], os.environ.get('OPENWEBUI_TOKEN'),
+            config['summaryModel'], block, config['summaryPrompt'],
+        )
+        for block in blocks
+    ]
+    return '\n\n---\n\n'.join(summaries)
 
 
 def syncRepo(config):
