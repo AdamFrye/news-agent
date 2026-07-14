@@ -79,13 +79,14 @@ def summarizeArticles(config, articles):
         f'## {article.title}\nURL: {article.url}\n\n{getArticleText(article)}'
         for article in articles
     ]
-    summaries = [
-        chatWithModel(
+    numArticles = len(articles)
+    summaries = []
+    for i, block in enumerate(blocks, start=1):
+        print(f'Summarizing article: {i}/{numArticles}')
+        summaries.append(chatWithModel(
             config['openWebUiBaseUrl'], os.environ.get('OPENWEBUI_TOKEN'),
             config['summaryModel'], block, config['summaryPrompt'],
-        )
-        for block in blocks
-    ]
+        ))
     return '\n\n---\n\n'.join(summaries)
 
 
