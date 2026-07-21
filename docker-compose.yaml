@@ -1,7 +1,9 @@
 services:
   news-agent:
     container_name: news-agent
-    build: .
-    image: news-agent
+    image: thebiggestfrye/news-agent:latest
     env_file: .env
     restart: unless-stopped
+    volumes:
+    - ./data/news:/data/news
+    - ./config.yaml:/app/config.yaml
