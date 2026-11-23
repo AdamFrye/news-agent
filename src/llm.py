@@ -1,14 +1,15 @@
 import json
 import requests
 
-def chatWithModel(url, token, model, content, systemPrompt = None):
+
+def chatWithModel(url, token, model, content, systemPrompt=None):
     headers = {
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json'
     }
 
     messages = []
-    if (systemPrompt):
+    if systemPrompt:
         messages.append({'role': 'system', 'content': systemPrompt})
     messages.append({'role': 'user', 'content': content})
 
@@ -17,11 +18,14 @@ def chatWithModel(url, token, model, content, systemPrompt = None):
         'messages': messages,
         'stream': False
     }
-    response = requests.post(url + '/api/chat/completions', headers=headers, json=data)
+
+    response = requests.post(
+        url + '/api/chat/completions', headers=headers, json=data
+    )
     response.raise_for_status()
 
-    # Some Open WebUI models ignore "stream": false and return a Server-Sent
-    # Events stream anyway, so handle both a single JSON body and an SSE stream.
+    # Some Open WebUI models ignore "stream": false and return an SSE stream
+    # anyway, so handle both a single JSON body and an SSE stream.
     contentType = response.headers.get('Content-Type', '')
     if 'text/event-stream' in contentType or response.text.lstrip().startswith('data:'):
         parts = []

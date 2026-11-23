@@ -17,8 +17,8 @@ RUN adduser --disabled-password --gecos "" agentuser
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of your application code
-COPY src/script.py src/chatWithModel.py ./
+# Copy the application package
+COPY src/ ./src/
 # We copy a default config, but we'll override it with a volume in Compose
 COPY config.yaml .
 
@@ -35,4 +35,4 @@ RUN mkdir -p /data/news \
 USER agentuser
 
 # The command to run when the container starts
-ENTRYPOINT ["python", "script.py"]
+ENTRYPOINT ["python", "-m", "src.main"]
