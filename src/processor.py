@@ -1,30 +1,50 @@
-import os
-
-from .llm import chatWithModel
 from .fetcher import getArticleText
-
+import ollama
 
 def selectArticleIds(config, articlesByGroup):
-    """Ask the selector model which articles to keep for each group."""
-    token = os.environ.get('OPENWEBUI_TOKEN')
-
+    client = ollama.Client(host=config.get('ollamaHost', config['ollamaBaseUrl']))
     selectedIds = []
+
     for feed in config['feeds']:
-        articles = articlesByGroup[feed['name']]
-        articleList = ''.join(f' {a.id}:({a.title}),' for a in articles)
-        prompt = f"limit: {feed['limit']}, articles:{articleList}"
-        response = chatWithModel(
-            config['openWebUiBaseUrl'], token, config['selectorModel'],
-            prompt, systemPrompt=config['selectorPrompt'],
-        )
-        if response:
-            selectedIds.extend(int(id) for id in response.split(','))
+        articles = articlesByGroup.get(feed['name'])
+        if len(articles) <= feed['limit']:
+            selectedIds.extend(a.id for a in articles)
+            continue
+
+        rankedArticles = []
+        for article in articles:
+            response = client.systemone(
+                model=config['selectorModel'],
+                state=article.title,
+                questions={
+                    'interest': {
+                        'type': 'score',
+                        'instructions': 'Rate how interesting this article might be to a curious general reader, based on the headline alone.',
+                        'criteria': [
+                            "Dull",
+                            "Very low interest",
+                            "Low interest",
+                            "Below average interest",
+                            "Average interest",
+                            "Above average interest",
+                            "Interesting",
+                            "Very interesting",
+                            "Fascinating",
+                            "Exceptional",
+                        ]
+                    }
+                }
+            )
+            rankedArticles.append({"id": article.id, "rank": response.answers['interest'].score})
+        rankedArticles = sorted(rankedArticles, key=lambda item: item["rank"], reverse=True)
+        selectedIds.extend(r["id"] for r in rankedArticles[:feed['limit']])
+
     return selectedIds
 
 
 def summarizeArticles(config, articles):
     """Render the selected articles into one document and summarize it."""
-    token = os.environ.get('OPENWEBUI_TOKEN')
+    client = ollama.Client(host=config.get('ollamaHost', config['ollamaBaseUrl']))
 
     blocks = [
         f'## {article.title}\nURL: {article.url}\n\n{getArticleText(article)}'
@@ -34,8 +54,13 @@ def summarizeArticles(config, articles):
     summaries = []
     for i, block in enumerate(blocks, start=1):
         print(f'Summarizing article: {i}/{numArticles}')
-        summaries.append(chatWithModel(
-            config['openWebUiBaseUrl'], token,
-            config['summaryModel'], block, config['summaryPrompt'],
-        ))
+        response = client.chat(
+            model=config['summaryModel'],
+            messages=[
+                {'role': 'system', 'content': config['summaryPrompt']},
+                {'role': 'user', 'content': block},
+            ],
+        )
+        summaries.append(response.message.content)
+
     return '\n\n---\n\n'.join(summaries)
