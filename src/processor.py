@@ -6,7 +6,7 @@ def selectArticleIds(config, articlesByGroup):
     selectedIds = []
 
     for feed in config['feeds']:
-        articles = articlesByGroup.get(feed['name'])
+        articles = articlesByGroup.get(feed['name']) or []
         if len(articles) <= feed['limit']:
             selectedIds.extend(a.id for a in articles)
             continue
